@@ -148,18 +148,23 @@ def find_abnormalities(cfiles, threshold_cross, state_change, outdir, extra_colu
                 if dfc.empty:
                     print(f"Does not exceed threshold in file {cf}")
                 else:
-                    crossing_indices = dfc.index
-                    print(len(crossing_indices))
-                    for idx in crossing_indices:
-                        start_idx = max(0, idx - rowsbefore)
-                        end_idx = min(df.shape[0], idx + rowsafter)
+                    #TODO: check if either of rows before or after exist
+                    if rowsbefore and rowsafter:
+                        crossing_indices = dfc.index
+                        print(len(crossing_indices))
+                        for idx in crossing_indices:
+                            start_idx = max(0, idx - rowsbefore)
+                            end_idx = min(df.shape[0], idx + rowsafter)
 
-                        print(f"\nThreshold {threshold} crossed in file {cf} for column {threshold_column_of_interest}")
+                            #print(f"\nThreshold {threshold} crossed in file {cf} for column {threshold_column_of_interest}")
 
-                        dfc1 = df.loc[start_idx:end_idx, cols_to_print]
-
-                        dfmain = pd.concat([dfmain, dfc1[cols_to_print]], axis=0).drop_duplicates()
-                        dfall = pd.concat([dfall, df.loc[start_idx: end_idx]], axis=0).drop_duplicates()
+                            dfc1 = df.loc[start_idx:end_idx, cols_to_print]
+                            dfmain = pd.concat([dfmain, dfc1[cols_to_print]], axis=0).drop_duplicates()
+                            dfall = pd.concat([dfall, df.loc[start_idx: end_idx]], axis=0).drop_duplicates()
+                    else:
+                        dfmain = pd.concat([dfmain, dfc[cols_to_print]], axis=0).drop_duplicates()
+                        dfall = pd.concat([dfall, dfc], axis=0).drop_duplicates()
+                        
                     stats += f"Threshold {threshold} crossed {dfc.shape[0]} times in file {cf} for column {threshold_column_of_interest}<br>"
 
         if state_change:
@@ -174,20 +179,27 @@ def find_abnormalities(cfiles, threshold_cross, state_change, outdir, extra_colu
                 df['shifted'] = df[state_change_column_of_interest].shift(fill_value=0)
                 df1 = df[(df.shifted == state_change_value1) & (df[state_change_column_of_interest] == state_change_value2)]
                 df2 = df[(df.shifted == state_change_value2) & (df[state_change_column_of_interest] == state_change_value1)]
-
+                #TODO: check if either of rows before or after exist
                 if not df1.empty:
-                    st_1 = df1.index
-                    for idx in st_1:
-                        start_idx_1 = max(0, idx - rowsbefore)
-                        end_idx_1 = min(df.shape[0], idx + rowsafter)
-                        dftoggle = pd.concat([dftoggle, df.loc[start_idx_1:end_idx_1][cols_to_print]], axis=0).drop_duplicates()
+                    if rowsbefore and rowsafter:
+                        st_1 = df1.index
+                        for idx in st_1:
+                            start_idx_1 = max(0, idx - rowsbefore)
+                            end_idx_1 = min(df.shape[0], idx + rowsafter)
+                            dftoggle = pd.concat([dftoggle, df.loc[start_idx_1:end_idx_1][cols_to_print]], axis=0).drop_duplicates()
+                    else:
+                        dftoggle = pd.concat([dftoggle, df1[cols_to_print]], axis=0).drop_duplicates()
 
-                if not df2.empty:
-                    st_2 = df2.index
-                    for idx in st_2:
-                        start_idx_2 = max(0, idx - rowsbefore)
-                        end_idx_2 = min(df.shape[0], idx + rowsafter)
-                        dftoggle = pd.concat([dftoggle, df.loc[start_idx_2:end_idx_2][cols_to_print]], axis=0).drop_duplicates()
+                if not df2.empty :
+                    if rowsbefore and rowsafter:
+                        st_2 = df2.index
+                        for idx in st_2:
+                            start_idx_2 = max(0, idx - rowsbefore)
+                            end_idx_2 = min(df.shape[0], idx + rowsafter)
+                            dftoggle = pd.concat([dftoggle, df.loc[start_idx_2:end_idx_2][cols_to_print]], axis=0).drop_duplicates()
+                    else:
+                        dftoggle = pd.concat([dftoggle, df2[cols_to_print]], axis=0).drop_duplicates()
+
 
                 printing(f"Number of times state change from {state_change_value1} to {state_change_value2} : {df1.shape[0]}")
                 printing(f"---Number of times state change from {state_change_value2} to {state_change_value1} : {df2.shape[0]}")

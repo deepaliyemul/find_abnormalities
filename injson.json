@@ -1,0 +1,39 @@
+{
+    "threshold_cross":{
+        "column_of_interest": "AuxCoolSys_DB.AuxCoolSys.3.Fan.OpTimeDays",
+        "threshold_value": 28
+    },
+    "state_change":
+    {
+        "column_of_interest": "AuxCoolSys_DB.AuxCoolSys.3.Fan.OnOffCmd",
+        "value_1": "0",
+        "value_2": "1" 
+    },
+    "input_csvs": 
+        [
+            "/home/deebha01/Downloads/annadir/anna.csv",
+            "/data/myscripts/test2.csv"
+        ],
+
+    "input_directories": 
+        [
+            "/home/deebha01/Downloads/annadir",
+            "/data/myscripts/test2.csv"
+        ],
+    "extra_columns": 
+        [
+            "AnalogInputs_DB.PDT210_3FCSpaceDiffPresInH2O.ScaledValue",
+            "AuxCoolSys_DB.AuxCoolSys.1.CoolLoLvl"
+        ],
+    "rows_before_abnormality": 10,
+    "rows_after_abnormality": 10,
+    "remove_duplicates": true,
+    "create_detailed_csv": true,
+    "number_of_days": 4,
+    "start_date": "",
+    "end_date": "",
+    "start_time": "",
+    "end_time": "",
+    "output_directory": "mytest"
+}
+
