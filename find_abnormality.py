@@ -139,9 +139,9 @@ def find_abnormalities(cfiles, threshold_cross, state_change, outdir, extra_colu
             else:
                 print(f"Warning: Could not find extra column {col} in {cf}. Skipping this column")
 
-        if threshold_cross:
+        if threshold_cross and threshold_cross != "":
             if threshold_column_of_interest not in df.columns:
-                print(f"{threshold_column_of_interest} not found in {cf}")
+                print(f"Threshold column: {threshold_column_of_interest} not found in {cf}")
             else:
                 cols_to_print.append(threshold_column_of_interest)
                 dfc = df[df[threshold_column_of_interest] >= threshold]
@@ -156,18 +156,19 @@ def find_abnormalities(cfiles, threshold_cross, state_change, outdir, extra_colu
                             start_idx = max(0, idx - rowsbefore)
                             end_idx = min(df.shape[0], idx + rowsafter)
 
-                            #print(f"\nThreshold {threshold} crossed in file {cf} for column {threshold_column_of_interest}")
+                            print(f"\nThreshold {threshold} crossed in file {cf} for column {threshold_column_of_interest}")
 
                             dfc1 = df.loc[start_idx:end_idx, cols_to_print]
                             dfmain = pd.concat([dfmain, dfc1[cols_to_print]], axis=0).drop_duplicates()
                             dfall = pd.concat([dfall, df.loc[start_idx: end_idx]], axis=0).drop_duplicates()
                     else:
+                        print(f"\nThreshold {threshold} crossed {dfc.shape[0]} in file {cf} for column {threshold_column_of_interest}")
                         dfmain = pd.concat([dfmain, dfc[cols_to_print]], axis=0).drop_duplicates()
                         dfall = pd.concat([dfall, dfc], axis=0).drop_duplicates()
                         
                     stats += f"Threshold {threshold} crossed {dfc.shape[0]} times in file {cf} for column {threshold_column_of_interest}<br>"
 
-        if state_change:
+        if state_change and state_change != "":
           
             if state_change_column_of_interest not in df.columns:
                 printing(f"{state_change_column_of_interest} not found in {cf}")
