@@ -127,7 +127,7 @@ class AnalyseData(Common):
                 if is_numeric_dtype(dfs[self.state_change_column_of_interest]):
                     self.state_change_value2 = float(self.state_change_value2)
                     self.state_change_value1 = float(self.state_change_value1)
-                dfs['shifted'] = dfs[self.state_change_column_of_interest].shift(fill_value=0)
+                dfs['shifted'] = dfs[self.state_change_column_of_interest].shift(fill_value=None)
                 df1 = dfs[(dfs.shifted == self.state_change_value1) & (dfs[self.state_change_column_of_interest] == self.state_change_value2)]
                 df2 = dfs[(dfs.shifted == self.state_change_value2) & (dfs[self.state_change_column_of_interest] == self.state_change_value1)]
                 #TODO: check if either of rows before or after exist
