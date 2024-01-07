@@ -7,6 +7,7 @@ from pandas.api.types import is_numeric_dtype
 import plotly.express as px
 import glob
 from datetime import datetime
+import sys
 
 class AnalyseData(Common):
 
@@ -74,7 +75,7 @@ class AnalyseData(Common):
                     end_idx = min(maindf.shape[0], idx + self.rowsafter)
                     dftog = pd.concat([dftog, maindf.loc[start_idx:end_idx][self.cols_to_print]], axis=0).drop_duplicates()
             else:
-                dftog = pd.concat([dftog, dfs[self.cols_to_print]], axis=0).drop_duplicates()
+                dftog = pd.concat([dftog, dfs], axis=0).drop_duplicates()
         return dftog
 
     def analyse_threshold(self, dft, fname):
@@ -108,7 +109,7 @@ class AnalyseData(Common):
                         return dfall_local
                     else:
 
-                        self.logger.info(f"\nThreshold {self.threshold} crossed {dfc.shape[0]} in file {fname} for column {self.threshold_column_of_interest}")
+                        self.logger.info(f"\nThreshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}")
                         self.stats += f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}<br>"
                         return dfc
 
@@ -141,9 +142,11 @@ class AnalyseData(Common):
                 self.logger.info(f"Total number of toggles : {toggle_total}")
                 return dftoggle
 
+
     def find_abnormalities(self, cfiles, jsondata):
         
         dfmain = pd.DataFrame()
+        dfmain_sc = pd.DataFrame()
         dfall = pd.DataFrame()
         dfall_sc = pd.DataFrame()
         toggle_total = 0
@@ -173,7 +176,7 @@ class AnalyseData(Common):
             
             dfs = self.analyse_state_change(df, cf)
             if not dfs.empty:
-                dfmain_sc = pd.concat([dfmain, dfs[self.cols_to_print]], axis=0).drop_duplicates()
+                dfmain_sc = pd.concat([dfmain_sc, dfs[self.cols_to_print]], axis=0).drop_duplicates()
                 dfall_sc = pd.concat([dfall_sc, dfs], axis=0).drop_duplicates()
                 
 
@@ -197,9 +200,13 @@ class AnalyseData(Common):
 
 
         if self.create_detailed_csv:  # Correct handling of create_detailed_csv
-            dfall.to_csv(self.outfile + "_detailed.csv", index=False)
-            self.prepend_extra_lines_csv(4, self.outfile + "_detailed.csv")
+            dfall.to_csv(self.outfile + "_threshold_detailed.csv", index=False)
+            dfall_sc.to_csv(self.outfile + "_state_toggle_detailed.csv", index=False)
+            self.prepend_extra_lines_csv(4, self.outfile + "_threshold_detailed.csv")
             self.logger.info(f"Detailed  Output saved to {self.outfile}_detailed.csv")
+            self.prepend_extra_lines_csv(4, self.outfile + "_state_toggle_detailed.csv")
+            self.logger.info(f"Detailed  Output saved to {self.outfile}_threshold_detailed.csv and {self.outfile}_state_toggle_detailed.csv")
+
 
 
         if not dfmain_sc.empty:
@@ -214,7 +221,7 @@ class AnalyseData(Common):
         if not self.outfile.endswith(".html"):
             self.outfile += ".html"
         self.htmlhelp.write_to_html(self.html,self.outfile)
-        self.logger.info(f"HTML Output saved to directory {self.outfile}.html")
+        self.logger.info(f"HTML Output saved to directory {self.outfile}")
 
 
 
