@@ -1,7 +1,7 @@
 {
     "threshold_cross":{
-        "column_of_interest": "AuxCoolSys_DB.AuxCoolSys.3.Fan.OpTimeDays",
-        "threshold_value": 28
+        "column_of_interest": "_Commands_DB.CMD_ALARMS_ACK",
+        "threshold_value": 20
     },
     "state_change":
     {
@@ -17,7 +17,7 @@
 
     "input_directories": 
         [
-            "/home/deebha01/Downloads/annadir",
+            "/Users/yemuldeepali/Downloads",
             "/data/myscripts/test2.csv"
         ],
     "extra_columns": 
