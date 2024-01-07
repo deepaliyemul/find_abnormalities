@@ -73,7 +73,7 @@ class AnalyseData(Common):
                 for idx in st:
                     start_idx = max(0, idx - self.rowsbefore)
                     end_idx = min(maindf.shape[0], idx + self.rowsafter)
-                    dftog = pd.concat([dftog, maindf.loc[start_idx:end_idx][self.cols_to_print]], axis=0).drop_duplicates()
+                    dftog = pd.concat([dftog, maindf.loc[start_idx:end_idx]], axis=0).drop_duplicates()
             else:
                 dftog = pd.concat([dftog, dfs], axis=0).drop_duplicates()
         return dftog
