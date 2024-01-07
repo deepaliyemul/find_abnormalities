@@ -6,18 +6,10 @@ import json
 class Common(object):
 
     def __init__(self):
-        print("--------------")
         self.logger = logging.getLogger('common')
         self.split_chunks = 2
         self.current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
-        print(self.logger)
-
-
-    def printing(self):
-        self.logger.info(text)
-        if runlog:
-            runlog.write(str(text) + "\n")
-
+        
     def read_inputjson(self, jfile):
         jdata = None
         

@@ -1,13 +1,16 @@
 import os
-import pandas as pd
-from common import Common
+import sys
 import json
-from HTMLHelper import HTMLHelper
+import glob
+import shutil
+from datetime import datetime
+import pandas as pd
 from pandas.api.types import is_numeric_dtype
 import plotly.express as px
-import glob
-from datetime import datetime
-import sys
+
+from common import Common
+from HTMLHelper import HTMLHelper
+
 
 class AnalyseData(Common):
 
@@ -16,6 +19,7 @@ class AnalyseData(Common):
         Common.__init__(self)
         jsondata = self.read_inputjson(input_json)
         outdir, outbase = self.setup_output_directory(jsondata["output_directory"])
+        shutil.copy(input_json, os.path.join(outdir, os.path.basename(input_json)))
         self.outfile = os.path.join(outdir, outbase + "_" + self.current_datetime)
 
         self.set_logging(outdir, loglevel)
@@ -31,7 +35,6 @@ class AnalyseData(Common):
         self.html = ""
         self.stats = ""
         
-
         if self.threshold_cross:
             self.threshold_column_of_interest = self.threshold_cross.get("column_of_interest", None)
             self.threshold = self.threshold_cross.get("threshold_value", None)
@@ -51,19 +54,7 @@ class AnalyseData(Common):
 
         if allcsvs:
             self.find_abnormalities(allcsvs, jdata)
-            
-    """
-    def check_index(self, df, col, filename):
-        if self.rowsbefore and self.rowsafter:
-            crossing_indices = dfc.index
-            for idx in crossing_indices:
-                start_idx = max(0, idx - self.rowsbefore)
-                end_idx = min(df.shape[0], idx + self.rowsafter)
-                self.logger.info(f"\nThreshold {threshold} crossed in file {filename} for column {col}")
-                dfc1 = df.loc[start_idx:end_idx, self.cols_to_print]
-                dfmain = pd.concat([dfmain, dfc1[self.cols_to_print]], axis=0).drop_duplicates()
-                dfall = pd.concat([dfall, df.loc[start_idx: end_idx]], axis=0).drop_duplicates()
-    """
+
 
     def check_index_state_change(self, dfs, maindf):
         dftog = pd.DataFrame()
