@@ -23,8 +23,8 @@ class AnalyseData(Common):
         self.state_change = jsondata.get("state_change", None)
         self.extra_columns = jsondata.get("extra_columns", list())
         self.create_detailed_csv = jsondata.get("create_detailed_csv", None)
-        self.rowsbefore = jsondata.get("rowsbefore", 0)
-        self.rowsafter = jsondata.get("rowsafter", 0)
+        self.rowsbefore = jsondata.get("rows_before_abnormality", 0)
+        self.rowsafter = jsondata.get("rows_after_abnormality", 0)
         self.htmlhelp = HTMLHelper()
         self.skiprows = 4
         self.html = ""
@@ -51,7 +51,7 @@ class AnalyseData(Common):
         if allcsvs:
             self.find_abnormalities(allcsvs, jdata)
             
-    
+    """
     def check_index(self, df, col, filename):
         if self.rowsbefore and self.rowsafter:
             crossing_indices = dfc.index
@@ -62,6 +62,7 @@ class AnalyseData(Common):
                 dfc1 = df.loc[start_idx:end_idx, self.cols_to_print]
                 dfmain = pd.concat([dfmain, dfc1[self.cols_to_print]], axis=0).drop_duplicates()
                 dfall = pd.concat([dfall, df.loc[start_idx: end_idx]], axis=0).drop_duplicates()
+    """
 
     def check_index_state_change(self, dfs, maindf):
         dftog = pd.DataFrame()
@@ -70,8 +71,8 @@ class AnalyseData(Common):
                 st = dfs.index
                 for idx in st:
                     start_idx = max(0, idx - self.rowsbefore)
-                    end_idx = min(maindf.shape[0], idx + rowsafter)
-                    dftog = pd.concat([dftog, maindf.loc[start_idx_1:end_idx_1][self.cols_to_print]], axis=0).drop_duplicates()
+                    end_idx = min(maindf.shape[0], idx + self.rowsafter)
+                    dftog = pd.concat([dftog, maindf.loc[start_idx:end_idx][self.cols_to_print]], axis=0).drop_duplicates()
             else:
                 dftog = pd.concat([dftog, dfs[self.cols_to_print]], axis=0).drop_duplicates()
         return dftog
@@ -96,8 +97,8 @@ class AnalyseData(Common):
                     if self.rowsbefore and self.rowsafter:
                         crossing_indices = dfc.index
                         for idx in crossing_indices:
-                            start_idx = max(0, idx - rowsbefore)
-                            end_idx = min(dft.shape[0], idx + rowsafter)
+                            start_idx = max(0, idx - self.rowsbefore)
+                            end_idx = min(dft.shape[0], idx + self.rowsafter)
 
                             self.logger.info(f"\nThreshold {self.threshold} crossed in file {fname} for column {self.threshold_column_of_interest}")
 
@@ -192,10 +193,14 @@ class AnalyseData(Common):
             self.html += self.htmlhelp.dataframe_to_html(dfmain)
             self.html += self.htmlhelp.figure_to_html(fig, title=self.threshold_column_of_interest)
             self.html += self.stats
+            self.logger.info(f"Threshold cross Output saved to {self.outfile}_threshold.csv")
+
 
         if self.create_detailed_csv:  # Correct handling of create_detailed_csv
             dfall.to_csv(self.outfile + "_detailed.csv", index=False)
             self.prepend_extra_lines_csv(4, self.outfile + "_detailed.csv")
+            self.logger.info(f"Detailed  Output saved to {self.outfile}_detailed.csv")
+
 
         if not dfmain_sc.empty:
             dfmain_sc.to_csv(self.outfile + "_state_toggle.csv", index=False)
@@ -203,10 +208,13 @@ class AnalyseData(Common):
             self.html += f"<H2> Total number of state changes for all files : {toggle_total}</H2>"
             self.html += "<H1>State Change data</H1>"
             self.html += self.htmlhelp.dataframe_to_html(dfmain_sc)
+            self.logger.info(f"State change Output saved to {self.outfile}_state_toggle.csv")
+
 
         if not self.outfile.endswith(".html"):
             self.outfile += ".html"
         self.htmlhelp.write_to_html(self.html,self.outfile)
+        self.logger.info(f"HTML Output saved to directory {self.outfile}.html")
 
 
 
