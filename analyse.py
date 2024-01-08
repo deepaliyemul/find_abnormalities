@@ -18,12 +18,12 @@ class AnalyseData(Common):
     def __init__(self, input_json, loglevel):
         Common.__init__(self)
         jsondata = self.read_inputjson(input_json)
-        outdir, outbase = self.setup_output_directory(jsondata["output_directory"])
-        shutil.copy(input_json, os.path.join(outdir, os.path.basename(input_json)))
-        self.outfile = os.path.join(outdir, outbase + "_" + self.current_datetime)
+        self.outdir, outbase = self.setup_output_directory(jsondata["output_directory"])
+        shutil.copy(input_json, os.path.join(self.outdir, os.path.basename(input_json)))
+        self.outfile = os.path.join(self.outdir, outbase + "_" + self.current_datetime)
 
-        self.set_logging(outdir, loglevel)
-        self.cols_to_print = ["Local Computer Time"]
+        self.set_logging(self.outdir, loglevel)
+        self.cols_to_print = set(["Local Computer Time"])
         self.threshold_cross = jsondata.get("threshold_cross", None)
         self.state_change = jsondata.get("state_change", None)
         self.extra_columns = jsondata.get("extra_columns", list())
@@ -78,7 +78,7 @@ class AnalyseData(Common):
                 self.logger.info(f"Threshold column: {self.threshold_column_of_interest} not found in {fname}")
                 return dfall_local
             else:
-                self.cols_to_print.append(self.threshold_column_of_interest)
+                self.cols_to_print.add(self.threshold_column_of_interest)
                 dfc = dft[dft[self.threshold_column_of_interest] >= self.threshold]
                 if dfc.empty:
                     self.logger.info(f"Does not exceed threshold in file {fname}")
@@ -91,12 +91,9 @@ class AnalyseData(Common):
                         for idx in crossing_indices:
                             start_idx = max(0, idx - self.rowsbefore)
                             end_idx = min(dft.shape[0], idx + self.rowsafter)
-
-                            self.logger.info(f"\nThreshold {self.threshold} crossed in file {fname} for column {self.threshold_column_of_interest}")
-
-                            #dfc1 = dft.loc[start_idx:end_idx]
-                            #dfmain_local = pd.concat([dfmain, dfc1[self.cols_to_print]], axis=0).drop_duplicates()
                             dfall_local = pd.concat([dfall_local, dft.loc[start_idx: end_idx]], axis=0).drop_duplicates()
+                        
+                        self.logger.info(f"\nThreshold {self.threshold} crossed {len(crossing_indices)} times in file {fname} for column {self.threshold_column_of_interest}")
                         return dfall_local
                     else:
 
@@ -115,7 +112,7 @@ class AnalyseData(Common):
                 self.logger.info(f"{self.state_change_column_of_interest} not found in {fname}")
                 return dftoggle
             else:
-                self.cols_to_print.append(self.state_change_column_of_interest)
+                self.cols_to_print.add(self.state_change_column_of_interest)
                 if is_numeric_dtype(dfs[self.state_change_column_of_interest]):
                     self.state_change_value2 = float(self.state_change_value2)
                     self.state_change_value1 = float(self.state_change_value1)
@@ -145,30 +142,31 @@ class AnalyseData(Common):
         for cf in cfiles:
             self.logger.info(f"\n----------------Analysing file {cf}--------------------- ")
             df = pd.read_csv(cf, skiprows=self.skiprows, low_memory=False)
-            for c in self.cols_to_print:
-                if c not in df.columns:
-                    self.logger.error(f"ERROR: Exiting the file because the Local computer time not found columns are not found in {cf}")
-                    continue
             df.insert(0, "filename", cf)
-            self.cols_to_print.append("filename")
+            self.cols_to_print.add("filename")
+            
+            if "Local Computer Time" not in df.columns:
+                self.logger.error(f"ERROR: Exiting the file because column: Local Computer Time not found columns are not found in {cf}")
+                continue
                 
             for col in self.extra_columns:
                 if col in df.columns:
-                    self.cols_to_print.append(col)
+                    self.cols_to_print.add(col)
                 else:
                     self.logger.warning(f"Warning: Could not find extra column {col} in {cf}. Skipping this column")
 
             dfr = self.analyse_threshold(df, cf)
             if not dfr.empty:
-                dfmain = pd.concat([dfmain, dfr[self.cols_to_print]], axis=0).drop_duplicates()
+                dfmain = pd.concat([dfmain, dfr[list(self.cols_to_print)]], axis=0).drop_duplicates()
                 dfall = pd.concat([dfall, dfr], axis=0).drop_duplicates()
             else:
                 self.logger.error(f"No threshold crossed for all inputs")
             
             dfs = self.analyse_state_change(df, cf)
             if not dfs.empty:
-                dfmain_sc = pd.concat([dfmain_sc, dfs[self.cols_to_print]], axis=0).drop_duplicates()
+                dfmain_sc = pd.concat([dfmain_sc, dfs[list(self.cols_to_print)]], axis=0).drop_duplicates()
                 dfall_sc = pd.concat([dfall_sc, dfs], axis=0).drop_duplicates()
+            self.logger.debug(f"columns to print {self.cols_to_print}")
                 
 
         if dfmain.empty and dfmain_sc.empty:
@@ -213,6 +211,9 @@ class AnalyseData(Common):
             self.outfile += ".html"
         self.htmlhelp.write_to_html(self.html,self.outfile)
         self.logger.info(f"HTML Output saved to directory {self.outfile}")
+        self.logger.info(f"All results saved in directory: {self.outdir}")
+        
+
 
 
 
