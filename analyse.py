@@ -76,6 +76,8 @@ class AnalyseData(Common):
     
             if self.threshold_column_of_interest not in dft.columns:
                 self.logger.info(f"Threshold column: {self.threshold_column_of_interest} not found in {fname}")
+                if self.threshold_column_of_interest in self.cols_to_print:
+                    self.cols_to_print.remove(self.threshold_column_of_interest)
                 return dfall_local
             else:
                 self.cols_to_print.append(self.threshold_column_of_interest)
@@ -116,7 +118,8 @@ class AnalyseData(Common):
         if bool(self.state_change):
             if self.state_change_column_of_interest not in dfs.columns:
                 self.logger.info(f"{self.state_change_column_of_interest} not found in {fname}")
-                self.cols_to_print.remove(self.state_change_column_of_interest)
+                if self.state_change_column_of_interest in self.cols_to_print:
+                    self.cols_to_print.remove(self.state_change_column_of_interest)
                 return dftoggle
             else:
                 self.cols_to_print.append(self.state_change_column_of_interest)
