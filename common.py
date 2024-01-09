@@ -67,7 +67,7 @@ class Common(object):
     
     
     
-    def construct_datatime_from_input_json(start_time, start_date, end_time, end_date):
+    def construct_datatime_from_input(self, start_time, start_date, end_time, end_date):
         if not start_time:
             start_time = "00:00"
         if not end_date:
@@ -82,7 +82,7 @@ class Common(object):
         
         return st, et
 
-    def check_of_file_within_date_time_range(cfile, st, et):
+    def check_of_file_within_date_time_range(self, cfile, st, et):
         modifiedtstamp = datetime.fromtimestamp(os.path.getmtime(cfile))
 
         if st < modifiedtstamp < et:

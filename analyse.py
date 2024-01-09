@@ -159,8 +159,6 @@ class AnalyseData(Common):
             if not dfr.empty:
                 dfmain = pd.concat([dfmain, dfr[list(self.cols_to_print)]], axis=0).drop_duplicates()
                 dfall = pd.concat([dfall, dfr], axis=0).drop_duplicates()
-            else:
-                self.logger.error(f"No threshold crossed for all inputs")
             
             dfs = self.analyse_state_change(df, cf)
             if not dfs.empty:
@@ -226,6 +224,15 @@ class AnalyseData(Common):
         end_date = jsondata.get("end_date", None)
         end_time = jsondata.get("end_time", None)
         start_time = jsondata.get("start_time", None)
+        
+        if number_of_days and end_date:
+            self.logger.error("""You can use either number_of_days or (start_data and end_date) , not both.
+                number_of_days checks for all files from present date back to number of days specified.
+                start_date and end_date is used for a range in YYYY-MM-DD format
+                If you specify only the start_date, you get to process all files from start_date until today
+                default start_time is 00:00
+                default end_time is 23.59""")
+            sys.exit(-1)
 
         list_csvs = list()
 
@@ -281,7 +288,7 @@ class AnalyseData(Common):
                     toberemoved.append(cf)
         
         if start_date:
-            stdatetime, etdatetime = construct_datatime_from_input(start_time, start_date, end_time, end_date)
+            stdatetime, etdatetime = self.construct_datatime_from_input(start_time, start_date, end_time, end_date)
             for c in list_csvs:
                 modifiedtstamp = datetime.fromtimestamp(os.path.getmtime(c))
                 if not stdatetime < modifiedtstamp < etdatetime:
