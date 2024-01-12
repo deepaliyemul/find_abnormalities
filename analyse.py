@@ -34,6 +34,7 @@ class AnalyseData(Common):
         self.skiprows = 4
         self.html = ""
         self.stats = ""
+        self.total_toggles = 0
         
         if self.threshold_cross:
             self.threshold_column_of_interest = self.threshold_cross.get("column_of_interest", None)
@@ -54,7 +55,20 @@ class AnalyseData(Common):
 
         if allcsvs:
             self.find_abnormalities(allcsvs, jdata)
-
+    
+    def check_index(self, dffilter, maindf):
+        dfchecked = pd.DataFrame()
+        if not dffilter.empty:
+            if self.rowsbefore and self.rowsafter:
+                st = dffilter.index
+                for idx in st:
+                    start_idx = max(0, idx - self.rowsbefore)
+                    end_idx = min(maindf.shape[0], idx + self.rowsafter)
+                    dfchecked = pd.concat([dfchecked, maindf.loc[start_idx:end_idx]], axis=0).drop_duplicates()
+            else:
+                dfchecked = pd.concat([dfchecked, dffilter], axis=0).drop_duplicates()
+                
+        return dfchecked
 
     def check_index_state_change(self, dfs, maindf):
         dftog = pd.DataFrame()
@@ -90,31 +104,19 @@ class AnalyseData(Common):
     
                 if dfc.empty:
                     self.logger.info(f"Does not exceed threshold in file {fname}")
-                    return dfall_local
+                    return dfall_local #return empty dataframe
                 else:
                     # TODO: check if either of rows before or after exist
                     # self.check_index(df, rowsbefore, rowsafter, self.threshold_column_of_interest, cf)
-                    if self.rowsbefore and self.rowsafter:
-                        crossing_indices = dfc.index
-                        for idx in crossing_indices:
-                            start_idx = max(0, idx - self.rowsbefore)
-                            end_idx = min(dft.shape[0], idx + self.rowsafter)
-                            dfall_local = pd.concat([dfall_local, dft.loc[start_idx: end_idx]], axis=0).drop_duplicates()
-
-                        self.logger.info(f"\nThreshold {self.threshold} crossed {len(crossing_indices)} times in file {fname} for column {self.threshold_column_of_interest}")
-                        return dfall_local
-                    else:
-                        self.logger.info(f"\nThreshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}")
-                        self.stats += f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}<br>"
-                        return dfc
-
-
+                    self.logger.info(f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}")
+                    self.stats += f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}<br>"
                         
-                    
+                    dfall_local = self.check_index(dfc, dft)
+                    return dfall_local
+
 
     def analyse_state_change(self, dfs, fname):
         dftoggle = pd.DataFrame()
-        toggle_total = 0
         if bool(self.state_change):
             if self.state_change_column_of_interest not in dfs.columns:
                 self.logger.info(f"{self.state_change_column_of_interest} not found in {fname}")
@@ -130,14 +132,13 @@ class AnalyseData(Common):
                 df1 = dfs[(dfs.shifted == self.state_change_value1) & (dfs[self.state_change_column_of_interest] == self.state_change_value2)]
                 df2 = dfs[(dfs.shifted == self.state_change_value2) & (dfs[self.state_change_column_of_interest] == self.state_change_value1)]
                 #TODO: check if either of rows before or after exist
-                dftoggle1 = self.check_index_state_change(df1, dfs)
-                dftoggle2 = self.check_index_state_change(df2, dfs)
+                dftoggle1 = self.check_index(df1, dfs)
+                dftoggle2 = self.check_index(df2, dfs)
                 dftoggle = pd.concat([dftoggle1, dftoggle2], axis=0).drop_duplicates()
 
                 self.logger.info(f"Number of times state change from {self.state_change_value1} to {self.state_change_value2} : {df1.shape[0]}")
                 self.logger.info(f"---Number of times state change from {self.state_change_value2} to {self.state_change_value1} : {df2.shape[0]}")
-                toggle_total += df1.shape[0] + df2.shape[0]
-                self.logger.info(f"Total number of toggles : {toggle_total}")
+                self.total_toggles += df1.shape[0] + df2.shape[0]
                 return dftoggle
 
 
@@ -147,16 +148,20 @@ class AnalyseData(Common):
         dfmain_sc = pd.DataFrame()
         dfall = pd.DataFrame()
         dfall_sc = pd.DataFrame()
-        toggle_total = 0
         
         for cf in cfiles:
             self.cols_to_print = list(["Local Computer Time"])
             self.logger.debug(f"columns to print {self.cols_to_print}")
 
             self.logger.info(f"\n----------------Analysing file {cf}--------------------- ")
-            df = pd.read_csv(cf, skiprows=self.skiprows, low_memory=False)
-            df.insert(0, "filename", cf)
-            self.cols_to_print.append("filename")
+            try:
+                df = pd.read_csv(cf, skiprows=self.skiprows, low_memory=False)
+                df.insert(0, "filename", cf)
+                self.cols_to_print.append("filename")
+
+            except Exception as e:
+                self.logger.error(f"Error parsing file {cf}: {e}")
+                continue
             
             if "Local Computer Time" not in df.columns:
                 self.logger.error(f"ERROR: Exiting the file because column: Local Computer Time not found columns are not found in {cf}")
@@ -213,7 +218,7 @@ class AnalyseData(Common):
         if not dfmain_sc.empty:
             dfmain_sc.to_csv(self.outfile + "_state_toggle.csv", index=False)
             self.prepend_extra_lines_csv(4, self.outfile + "_state_toggle.csv")
-            self.html += f"<H2> Total number of state changes for all files : {toggle_total}</H2>"
+            self.html += f"<H2> Total number of state changes for all files : {self.total_toggles}</H2>"
             self.html += "<H1>State Change data</H1>"
             self.html += self.htmlhelp.dataframe_to_html(dfmain_sc)
             self.logger.info(f"State change Output saved to {self.outfile}_state_toggle.csv")
@@ -225,9 +230,6 @@ class AnalyseData(Common):
         self.logger.info(f"HTML Output saved to directory {self.outfile}")
         self.logger.info(f"All results saved in directory: {self.outdir}")
         
-
-
-
 
     def get_files(self, jsondata):
         input_csvs = jsondata.get("input_csvs", None)
