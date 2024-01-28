@@ -1,0 +1,16 @@
+,
+        {
+            "column_of_interest": "sc 1",
+            "value_1": 2,
+            "value_2": 3
+        },
+        {
+            "column_of_interest": "sc2",
+            "value_1": 1,
+            "value_2": 0
+        },
+        {
+            "column_of_interest": "sc2",
+            "value_1": 2,
+            "value_2": 3
+        }

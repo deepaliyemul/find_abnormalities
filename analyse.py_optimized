@@ -24,7 +24,7 @@ class AnalyseData(Common):
 
         self.set_logging(self.outdir, loglevel)
         self.cols_to_print = list(["Local Computer Time"])
-        self.threshold = jsondata.get("threshold", None)
+        self.threshold_cross = jsondata.get("threshold_cross", None)
         self.state_change = jsondata.get("state_change", None)
         self.extra_columns = jsondata.get("extra_columns", list())
         self.create_detailed_csv = jsondata.get("create_detailed_csv", None)
@@ -35,54 +35,18 @@ class AnalyseData(Common):
         self.html = ""
         self.stats = ""
         self.total_toggles = 0
-        self.threshold_columns_of_interest = list()
-        self.state_change_columns_of_interest = list()
+        
+        if self.threshold_cross:
+            self.threshold_column_of_interest = self.threshold_cross.get("column_of_interest", None)
+            self.threshold = self.threshold_cross.get("threshold_value", None)
+            self.logger.info(f"Finding threshold value {self.threshold} crossing in {self.threshold_column_of_interest}")
 
+        if self.state_change:
+            self.state_change_column_of_interest = self.state_change.get("column_of_interest", None)
+            self.state_change_value1 = self.state_change.get("value_1", None)
+            self.state_change_value2 = self.state_change.get("value_2", None)
+            self.logger.info(f"Finding state change for column: {self.state_change_column_of_interest}")
 
-    def build_query_threshold(self, columnlist, jsonlist):
-        query = str()
-        query_list = list()
-        for q in jsonlist:
-            if not bool(q.get("column_of_interest")) or not q.get("threshold_value", None): #check if blank or has come data
-                continue
-            if q["column_of_interest"] not in columnlist:
-                continue
-            # if above_threshold is not specified, assume default above
-            if q["column_of_interest"] not in self.threshold_columns_of_interest:
-                self.threshold_columns_of_interest.append(q["column_of_interest"])
-            above_threshold = q.get("above_threshold", True)
-            if above_threshold:
-                query_list.append(f"`{q['column_of_interest']}` >= {q['threshold_value']}")
-            else:
-                query_list.append(f"`{q['column_of_interest']}` <= {q['threshold_value']}")
-        if query_list:
-            query =  " | ".join(query_list)
-        self.logger.debug(f"Query to search for threshold: {query}")
-        return query
-
-    def build_query_state_change(self, columnlist, jsonlist):
-        query = str()
-        query_list = list()
-        for q in jsonlist:
-            if not bool(q.get("column_of_interest")) or not "value_1" in q.keys() or not "value_2" in q.keys(): #check if blank or has come data
-                self.logger.debug(f"Column of interest, or value_1 or value_2 for state change not found {jsonlist}\
-                    bool :{bool(q.get('column_of_interest'))}\
-                    bool value_1:{q.get('value_1', None)}\
-                    bool value_2:{q.get('value_2', None)}")
-                continue
-            if q["column_of_interest"] not in columnlist:
-                self.logger.debug("Column of interest not in columnlist {columnlist}")
-                continue
-            if q["column_of_interest"] not in self.state_change_columns_of_interest:
-                self.state_change_columns_of_interest.append(q["column_of_interest"])
-            val1 = q['value_1'] if not is_numeric_dtype(q["column_of_interest"]) else float(q['value_1'])
-            val2 = q['value_2'] if not is_numeric_dtype(q["column_of_interest"]) else float(q['value_2'])
-            
-            query_list.append(f"(\"{q['column_of_interest']}_shifted\" == {val1} & \"{q['column_of_interest']}\" == {val2})")
-            query_list.append(f"(\"{q['column_of_interest']}_shifted\" == {val2} & \"{q['column_of_interest']}\" == {val1})")
-        query =  " | ".join(query_list)
-        self.logger.debug(f"Query to search for state change :{query}")
-        return query
 
     def call_analysis(self, input_json):
         jdata = self.read_inputjson(input_json)
@@ -103,61 +67,79 @@ class AnalyseData(Common):
                     dfchecked = pd.concat([dfchecked, maindf.loc[start_idx:end_idx]], axis=0).drop_duplicates()
             else:
                 dfchecked = pd.concat([dfchecked, dffilter], axis=0).drop_duplicates()
-
+                
         return dfchecked
 
+    def check_index_state_change(self, dfs, maindf):
+        dftog = pd.DataFrame()
+        if not dfs.empty:
+            if self.rowsbefore and self.rowsafter:
+                st = dfs.index
+                for idx in st:
+                    start_idx = max(0, idx - self.rowsbefore)
+                    end_idx = min(maindf.shape[0], idx + self.rowsafter)
+                    dftog = pd.concat([dftog, maindf.loc[start_idx:end_idx]], axis=0).drop_duplicates()
+            else:
+                dftog = pd.concat([dftog, dfs], axis=0).drop_duplicates()
+        return dftog
 
     def analyse_threshold(self, dft, fname):
         dfall_local = pd.DataFrame()
-        self.threshold_columns_of_interest = list()
-        if self.threshold:
-            threshold_base_query = self.build_query_threshold(dft.columns, self.threshold)
-            # Filter based on the threshold
-            self.cols_to_print += self.threshold_columns_of_interest
-            if threshold_base_query:
-                dfc = dft.query(threshold_base_query)
-            else:
-                self.logger.error(f"No query formed for file {fname}")
-                return dfall_local
 
-            if dfc.empty:
-                self.logger.info(f"Does not exceed threshold in file {fname}")
-                return dfall_local #return empty dataframe
-            else:
-                # TODO: check if either of rows before or after exist
-                # self.check_index(df, rowsbefore, rowsafter, self.threshold_column_of_interest, cf)
-                self.logger.info(f"Threshold criteria met in file {fname} for columns {self.threshold_columns_of_interest}")
-                self.stats += f"Threshold criteria met in file {fname} for columns {self.threshold_columns_of_interest}<br>"
-                    
-                dfall_local = self.check_index(dfc, dft)
+        if bool(self.threshold_cross):
+    
+            if self.threshold_column_of_interest not in dft.columns:
+                self.logger.info(f"Threshold column: {self.threshold_column_of_interest} not found in {fname}")
+                if self.threshold_column_of_interest in self.cols_to_print:
+                    self.cols_to_print.remove(self.threshold_column_of_interest)
                 return dfall_local
-        else:
-            return dfall_local
-        #todo test of column exists in one but not in another file
+            else:
+                self.cols_to_print.append(self.threshold_column_of_interest)
+    
+                # Convert the column to numeric values (ignoring errors)
+                dft[self.threshold_column_of_interest] = pd.to_numeric(dft[self.threshold_column_of_interest], errors='coerce')
 
+                # Filter based on the threshold
+                dfc = dft[dft[self.threshold_column_of_interest] >= self.threshold]
+    
+                if dfc.empty:
+                    self.logger.info(f"Does not exceed threshold in file {fname}")
+                    return dfall_local #return empty dataframe
+                else:
+                    # TODO: check if either of rows before or after exist
+                    # self.check_index(df, rowsbefore, rowsafter, self.threshold_column_of_interest, cf)
+                    self.logger.info(f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}")
+                    self.stats += f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}<br>"
+                        
+                    dfall_local = self.check_index(dfc, dft)
+                    return dfall_local
 
 
     def analyse_state_change(self, dfs, fname):
         dftoggle = pd.DataFrame()
-        self.state_change_columns_of_interest = list()
-        if self.state_change:
-            state_change_base_query = self.build_query_state_change(dfs.columns, self.state_change)
-            if not state_change_base_query:
-                self.logger.error(f"No query formed for file {fname}")
-                return dftoggle #return emtpy df
-
-            self.cols_to_print += self.state_change_columns_of_interest
-            for sccol in self.state_change_columns_of_interest:
-                #sccol = entry["column_of_interest"]
-                dfs[sccol+'_shifted'] = dfs[sccol].shift(fill_value=None)
+        if bool(self.state_change):
+            if self.state_change_column_of_interest not in dfs.columns:
+                self.logger.info(f"{self.state_change_column_of_interest} not found in {fname}")
+                if self.state_change_column_of_interest in self.cols_to_print:
+                    self.cols_to_print.remove(self.state_change_column_of_interest)
+                return dftoggle
+            else:
+                self.cols_to_print.append(self.state_change_column_of_interest)
+                if is_numeric_dtype(dfs[self.state_change_column_of_interest]):
+                    self.state_change_value2 = float(self.state_change_value2)
+                    self.state_change_value1 = float(self.state_change_value1)
+                dfs['shifted'] = dfs[self.state_change_column_of_interest].shift(fill_value=None)
+                df1 = dfs[(dfs.shifted == self.state_change_value1) & (dfs[self.state_change_column_of_interest] == self.state_change_value2)]
+                df2 = dfs[(dfs.shifted == self.state_change_value2) & (dfs[self.state_change_column_of_interest] == self.state_change_value1)]
                 #TODO: check if either of rows before or after exist
-            dftog = dfs.query(state_change_base_query)
-            dftoggle = self.check_index(dftog, dfs)
-            self.logger.info(f"Total state changed in file {fname} : {dftog.shape[0]}")
-            self.total_toggles += dftog.shape[0]
-            return dftoggle
-        else:
-            return dftoggle
+                dftoggle1 = self.check_index(df1, dfs)
+                dftoggle2 = self.check_index(df2, dfs)
+                dftoggle = pd.concat([dftoggle1, dftoggle2], axis=0).drop_duplicates()
+
+                self.logger.info(f"Number of times state change from {self.state_change_value1} to {self.state_change_value2} : {df1.shape[0]}")
+                self.logger.info(f"---Number of times state change from {self.state_change_value2} to {self.state_change_value1} : {df2.shape[0]}")
+                self.total_toggles += df1.shape[0] + df2.shape[0]
+                return dftoggle
 
 
     def find_abnormalities(self, cfiles, jsondata):
@@ -195,14 +177,12 @@ class AnalyseData(Common):
             dfr = self.analyse_threshold(df, cf)
             if not dfr.empty:
                 dfmain = pd.concat([dfmain, dfr[list(self.cols_to_print)]], axis=0).drop_duplicates()
-                if self.create_detailed_csv:
-                    dfall = pd.concat([dfall, dfr], axis=0).drop_duplicates()
+                dfall = pd.concat([dfall, dfr], axis=0).drop_duplicates()
             
             dfs = self.analyse_state_change(df, cf)
             if not dfs.empty:
                 dfmain_sc = pd.concat([dfmain_sc, dfs[list(self.cols_to_print)]], axis=0).drop_duplicates()
-                if self.create_detailed_csv:  
-                    dfall_sc = pd.concat([dfall_sc, dfs], axis=0).drop_duplicates()
+                dfall_sc = pd.concat([dfall_sc, dfs], axis=0).drop_duplicates()
             self.logger.debug(f"columns to print {self.cols_to_print}")
                 
 
@@ -217,14 +197,12 @@ class AnalyseData(Common):
             self.logger.debug(f"Saving dfmain to {self.outfile} _threshold.csv")
             dfmain.to_csv(self.outfile + "_threshold.csv", index=False)
             self.prepend_extra_lines_csv(4, self.outfile + "_threshold.csv")
-            #fig = px.bar(dfmain, y=[self.threshold_columns_of_interest], x="Local Computer Time")
+            fig = px.bar(dfmain, y=self.threshold_column_of_interest, x="Local Computer Time")
             self.html += "<H1>Threshold crossed data</H1>"
             self.html += self.htmlhelp.dataframe_to_html(dfmain)
-            #self.html += self.htmlhelp.figure_to_html(fig, title=self.threshold_column_of_interest)
+            self.html += self.htmlhelp.figure_to_html(fig, title=self.threshold_column_of_interest)
             self.html += self.stats
             self.logger.info(f"Threshold cross Output saved to {self.outfile}_threshold.csv")
-            self.logger.debug(f"Threshold df {dfmain.shape}")
-                    
 
 
         if self.create_detailed_csv:  # Correct handling of create_detailed_csv
@@ -234,9 +212,6 @@ class AnalyseData(Common):
             self.logger.info(f"Detailed  Output saved to {self.outfile}_detailed.csv")
             self.prepend_extra_lines_csv(4, self.outfile + "_state_toggle_detailed.csv")
             self.logger.info(f"Detailed  Output saved to {self.outfile}_threshold_detailed.csv and {self.outfile}_state_toggle_detailed.csv")
-            self.logger.debug(f"Threshold df detailed {dfall.shape}")
-            self.logger.debug(f"State change df detailed {dfall_sc.shape}")
-
 
 
 
@@ -247,8 +222,6 @@ class AnalyseData(Common):
             self.html += "<H1>State Change data</H1>"
             self.html += self.htmlhelp.dataframe_to_html(dfmain_sc)
             self.logger.info(f"State change Output saved to {self.outfile}_state_toggle.csv")
-            self.logger.debug(f"stat_change df detailed {dfmain_sc.shape}")
-
 
 
         if not self.outfile.endswith(".html"):
