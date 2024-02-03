@@ -177,12 +177,18 @@ class AnalyseData(Common):
             dfr = self.analyse_threshold(df, cf)
             if not dfr.empty:
                 dfmain = pd.concat([dfmain, dfr[list(self.cols_to_print)]], axis=0).drop_duplicates()
-                dfall = pd.concat([dfall, dfr], axis=0).drop_duplicates()
-            
+                self.logger.info(f"dfmain: memory usage: {dfmain.memory_usage().sum()/1e6} MB")
+                if self.create_detailed_csv:
+                    dfall = pd.concat([dfall, dfr], axis=0).drop_duplicates()
+                    self.logger.info(f"dfall: memory usage: {dfall.memory_usage().sum()/1e6} MB")
+
             dfs = self.analyse_state_change(df, cf)
             if not dfs.empty:
                 dfmain_sc = pd.concat([dfmain_sc, dfs[list(self.cols_to_print)]], axis=0).drop_duplicates()
-                dfall_sc = pd.concat([dfall_sc, dfs], axis=0).drop_duplicates()
+                self.logger.info(f"dfmain_sc: memory usage: {dfmain_sc.memory_usage(deep=True).sum()/1e6} MB")
+                if self.create_detailed_csv:
+                    dfall_sc = pd.concat([dfall_sc, dfs], axis=0).drop_duplicates()
+                    self.logger.info(f"dfall_sc: memory usage: {dfall_sc.memory_usage(deep=True).sum()/1e6} MB")
             self.logger.debug(f"columns to print {self.cols_to_print}")
                 
 
