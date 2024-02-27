@@ -9,8 +9,6 @@ from pandas.api.types import is_numeric_dtype
 import plotly.express as px
 
 from common import Common
-from HTMLHelper import HTMLHelper
-
 
 class AnalyseData(Common):
 
@@ -23,23 +21,27 @@ class AnalyseData(Common):
         self.outfile = os.path.join(self.outdir, outbase + "_" + self.current_datetime)
 
         self.set_logging(self.outdir, loglevel)
-        self.cols_to_print = list(["Local Computer Time"])
-        self.threshold_cross = jsondata.get("threshold_cross", None)
+        self.cols_to_print = list([" "])
+        self.threshold_cross = jsondata.get("threshold", None)
         self.state_change = jsondata.get("state_change", None)
         self.extra_columns = jsondata.get("extra_columns", list())
         self.create_detailed_csv = jsondata.get("create_detailed_csv", None)
         self.rowsbefore = jsondata.get("rows_before_abnormality", 0)
         self.rowsafter = jsondata.get("rows_after_abnormality", 0)
-        self.htmlhelp = HTMLHelper()
         self.skiprows = 4
-        self.html = ""
         self.stats = ""
         self.total_toggles = 0
         
         if self.threshold_cross:
-            self.threshold_column_of_interest = self.threshold_cross.get("column_of_interest", None)
-            self.threshold = self.threshold_cross.get("threshold_value", None)
-            self.logger.info(f"Finding threshold value {self.threshold} crossing in {self.threshold_column_of_interest}")
+            for entry in self.threshold_cross:
+                #self.threshold_column_of_interest_list = entry.get("column_of_interest", None)
+                #self.threshold = entry.get("value", None)
+                self.operator = entry.get("operator", "=")
+                 #validate operator- from
+                if not any(x != self.operator for x in [">", "<","<=",">=","="]):
+                    self.logger.error("Invalid operator")
+                    sys.exit(-1)
+                #self.logger.info(f"Finding threshold value {self.threshold} crossing in {self.threshold_column_of_interest}")
 
         if self.state_change:
             self.state_change_column_of_interest = self.state_change.get("column_of_interest", None)
@@ -85,34 +87,37 @@ class AnalyseData(Common):
 
     def analyse_threshold(self, dft, fname):
         dfall_local = pd.DataFrame()
+        exprlist = list()
 
         if bool(self.threshold_cross):
-    
-            if self.threshold_column_of_interest not in dft.columns:
-                self.logger.info(f"Threshold column: {self.threshold_column_of_interest} not found in {fname}")
-                if self.threshold_column_of_interest in self.cols_to_print:
-                    self.cols_to_print.remove(self.threshold_column_of_interest)
-                return dfall_local
-            else:
-                self.cols_to_print.append(self.threshold_column_of_interest)
-    
-                # Convert the column to numeric values (ignoring errors)
-                dft[self.threshold_column_of_interest] = pd.to_numeric(dft[self.threshold_column_of_interest], errors='coerce')
+            for entry in self.threshold_cross:
+                if entry["column_of_interest"] not in dft.columns:
+                    self.logger.info(f"Threshold column: {entry['column_of_interest']} not found in {fname}")
+                    if entry["column_of_interest"] in self.cols_to_print:
+                        self.cols_to_print.remove(entry["column_of_interest"])
+                else:
+                    self.cols_to_print.append(entry["column_of_interest"])
+                    # Convert the column to numeric values (ignoring errors)
+                    dft[entry["column_of_interest"]] = pd.to_numeric(dft[entry["column_of_interest"]], errors='coerce')
+                    # Filter based on the threshold
+                    exprlist.append(f"{entry['column_of_interest']} {entry['operator']} {entry['value']}")
 
-                # Filter based on the threshold
-                dfc = dft[dft[self.threshold_column_of_interest] >= self.threshold]
-    
+            if exprlist:
+                expr=" | ".join(x for x in exprlist)
+                dfc = dft.query(" & ".join(x for x in exprlist))
+            #dfc = dft[dft[ entry["column_of_interest"]] >= 1]
+
                 if dfc.empty:
                     self.logger.info(f"Does not exceed threshold in file {fname}")
-                    return dfall_local #return empty dataframe
                 else:
                     # TODO: check if either of rows before or after exist
                     # self.check_index(df, rowsbefore, rowsafter, self.threshold_column_of_interest, cf)
-                    self.logger.info(f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}")
-                    self.stats += f"Threshold {self.threshold} crossed {dfc.shape[0]} times in file {fname} for column {self.threshold_column_of_interest}<br>"
-                        
+                    self.logger.info(f"Threshold {1} crossed {dfc.shape[0]} times in file {fname} for column {entry['column_of_interest']}")
+                    self.stats += f"Threshold {1} crossed {dfc.shape[0]} times in file {fname} for column {entry['column_of_interest']}<br>"
+
                     dfall_local = self.check_index(dfc, dft)
-                    return dfall_local
+            return dfall_local
+
 
 
     def analyse_state_change(self, dfs, fname):
@@ -196,18 +201,11 @@ class AnalyseData(Common):
             self.logger.info("No output to process")
             sys.exit(-1)
 
-        self.html = self.htmlhelp.add_page_headers(self.html, "Analysis")
-        self.html = self.htmlhelp.browser_compatibility(self.html)
-
         if not dfmain.empty:
             self.logger.debug(f"Saving dfmain to {self.outfile} _threshold.csv")
             dfmain.to_csv(self.outfile + "_threshold.csv", index=False)
             self.prepend_extra_lines_csv(4, self.outfile + "_threshold.csv")
-            fig = px.bar(dfmain, y=self.threshold_column_of_interest, x="Local Computer Time")
-            self.html += "<H1>Threshold crossed data</H1>"
-            self.html += self.htmlhelp.dataframe_to_html(dfmain)
-            self.html += self.htmlhelp.figure_to_html(fig, title=self.threshold_column_of_interest)
-            self.html += self.stats
+            #fig = px.bar(dfmain, y=self.threshold_column_of_interest, x="Local Computer Time")
             self.logger.info(f"Threshold cross Output saved to {self.outfile}_threshold.csv")
 
 
@@ -224,16 +222,8 @@ class AnalyseData(Common):
         if not dfmain_sc.empty:
             dfmain_sc.to_csv(self.outfile + "_state_toggle.csv", index=False)
             self.prepend_extra_lines_csv(4, self.outfile + "_state_toggle.csv")
-            self.html += f"<H2> Total number of state changes for all files : {self.total_toggles}</H2>"
-            self.html += "<H1>State Change data</H1>"
-            self.html += self.htmlhelp.dataframe_to_html(dfmain_sc)
             self.logger.info(f"State change Output saved to {self.outfile}_state_toggle.csv")
 
-
-        if not self.outfile.endswith(".html"):
-            self.outfile += ".html"
-        self.htmlhelp.write_to_html(self.html,self.outfile)
-        self.logger.info(f"HTML Output saved to directory {self.outfile}")
         self.logger.info(f"All results saved in directory: {self.outdir}")
         
 

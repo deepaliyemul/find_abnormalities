@@ -1,8 +1,14 @@
 {
-    "threshold_cross":{
-        "column_of_interest": "_Commands_DB.CMD_ALARMS_ACK",
-        "threshold_value": 20
-    },
+    "threshold":[
+        {   "column_of_interest": "col1",
+            "value": 2,
+            "operator": "=="
+        },
+        {   "column_of_interest": "col2",
+            "value": 1.0,
+            "operator": ">"
+        }
+    ],
     "state_change":
     {
         "column_of_interest": "AuxCoolSys_DB.AuxCoolSys.3.Fan.OnOffCmd",
@@ -11,25 +17,25 @@
     },
     "input_csvs": 
         [
-            "/home/deebha01/Downloads/annadir/anna.csv",
-            "/data/myscripts/test2.csv"
+            "/home/deebha01/Downloads/annadir/andna.csv",
+            "/data/myscripts/testd2.csv"
         ],
 
     "input_directories": 
         [
-            "/Users/yemuldeepali/Downloads",
-            "/data/myscripts/test2.csv"
+            "/Users/yemuldeepali/find_abnormalities/test_dir",
+            "/data/myscripts/tesdt2.csv"
         ],
     "extra_columns": 
         [
             "AnalogInputs_DB.PDT210_3FCSpaceDiffPresInH2O.ScaledValue",
             "AuxCoolSys_DB.AuxCoolSys.1.CoolLoLvl"
         ],
-    "rows_before_abnormality": 10,
-    "rows_after_abnormality": 10,
+    "rows_before_abnormality": 0,
+    "rows_after_abnormality": 0,
     "remove_duplicates": true,
     "create_detailed_csv": true,
-    "number_of_days": 4,
+    "number_of_days": 0,
     "start_date": "",
     "end_date": "",
     "start_time": "",

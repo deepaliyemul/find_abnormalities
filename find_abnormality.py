@@ -4,7 +4,6 @@ import os
 import glob
 import sys
 from datetime import datetime
-from HTMLHelper import HTMLHelper
 from common import Common
 import time
 import json
