@@ -1,11 +1,23 @@
 {
+    "description": [
+            "List of dictionaries with column name and threshold",
+            "valid operators to match column_of_interest with value:",
+            "equal to: == , Note that this is = sign twice",
+            "greater than: >",
+            "less than: <",
+            "greather than or equal to: >=",
+            "less than or equal to: <=",
+            "This code will use OR to match columns specified in threshold.",
+            "Meaning it will take into account all rows which match any of criteria in threshold list",
+            "TODO: provide option to AND"
+        ],
     "threshold":[
-        {   "column_of_interest": "col1",
-            "value": 2,
-            "operator": "=="
+        {   "column_of_interest": "AnaIn_DB.PiT115H2CondTankPresPsig.Output",
+            "value": 22.9,
+            "operator": ">"
         },
-        {   "column_of_interest": "col2",
-            "value": 1.0,
+        {   "column_of_interest": "AnaIn_DB.TT213InvSpaceTempC.Output",
+            "value": 23.0,
             "operator": ">"
         }
     ],
@@ -34,7 +46,8 @@
     "rows_before_abnormality": 0,
     "rows_after_abnormality": 0,
     "remove_duplicates": true,
-    "create_detailed_csv": true,
+    "header_start_row": 4,
+    "create_detailed_csv": false,
     "number_of_days": 0,
     "start_date": "",
     "end_date": "",

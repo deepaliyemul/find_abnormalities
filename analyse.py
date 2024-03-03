@@ -28,7 +28,7 @@ class AnalyseData(Common):
         self.create_detailed_csv = jsondata.get("create_detailed_csv", None)
         self.rowsbefore = jsondata.get("rows_before_abnormality", 0)
         self.rowsafter = jsondata.get("rows_after_abnormality", 0)
-        self.skiprows = 4
+        self.skiprows = jsondata["header_start_row"]
         self.stats = ""
         self.total_toggles = 0
         
@@ -100,13 +100,11 @@ class AnalyseData(Common):
                     # Convert the column to numeric values (ignoring errors)
                     dft[entry["column_of_interest"]] = pd.to_numeric(dft[entry["column_of_interest"]], errors='coerce')
                     # Filter based on the threshold
-                    exprlist.append(f"{entry['column_of_interest']} {entry['operator']} {entry['value']}")
+                    exprlist.append(f"`{entry['column_of_interest']}` {entry['operator']} {entry['value']}")
 
             if exprlist:
-                expr=" | ".join(x for x in exprlist)
-                dfc = dft.query(" & ".join(x for x in exprlist))
-            #dfc = dft[dft[ entry["column_of_interest"]] >= 1]
-
+                expr = " & ".join(x for x in exprlist)
+                dfc = dft.query(expr)
                 if dfc.empty:
                     self.logger.info(f"Does not exceed threshold in file {fname}")
                 else:
