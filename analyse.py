@@ -103,7 +103,7 @@ class AnalyseData(Common):
                     exprlist.append(f"`{entry['column_of_interest']}` {entry['operator']} {entry['value']}")
 
             if exprlist:
-                expr = " & ".join(x for x in exprlist)
+                expr = " | ".join(x for x in exprlist)
                 dfc = dft.query(expr)
                 if dfc.empty:
                     self.logger.info(f"Does not exceed threshold in file {fname}")
