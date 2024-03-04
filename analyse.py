@@ -28,7 +28,8 @@ class AnalyseData(Common):
         self.create_detailed_csv = jsondata.get("create_detailed_csv", None)
         self.rowsbefore = jsondata.get("rows_before_abnormality", 0)
         self.rowsafter = jsondata.get("rows_after_abnormality", 0)
-        self.skiprows = jsondata["header_start_row"]
+        #default to skip 4 rows
+        self.skiprows = jsondata.get("header_start_row", 5) - 1 
         self.stats = ""
         self.total_toggles = 0
         
