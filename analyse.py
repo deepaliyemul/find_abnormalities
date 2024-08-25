@@ -97,7 +97,8 @@ class AnalyseData(Common):
                     if entry["column_of_interest"] in self.cols_to_print:
                         self.cols_to_print.remove(entry["column_of_interest"])
                 else:
-                    self.cols_to_print.append(entry["column_of_interest"])
+                    if entry["column_of_interest"] not in self.cols_to_print:
+                        self.cols_to_print.append(entry["column_of_interest"])
                     # Convert the column to numeric values (ignoring errors)
                     dft[entry["column_of_interest"]] = pd.to_numeric(dft[entry["column_of_interest"]], errors='coerce')
                     # Filter based on the threshold
