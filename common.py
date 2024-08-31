@@ -33,7 +33,7 @@ class Common(object):
         outbase = os.path.basename(output_dir)
         outdir = os.path.dirname(output_dir)
         if not bool(outdir):
-        	outdir = os.getcwd()
+            outdir = os.getcwd()
         if not bool(outbase):
             outbase = "test"
         

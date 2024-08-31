@@ -7,6 +7,7 @@ from datetime import datetime
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 import plotly.express as px
+from tqdm import tqdm
 
 from common import Common
 
@@ -92,6 +93,9 @@ class AnalyseData(Common):
 
         if bool(self.threshold_cross):
             for entry in self.threshold_cross:
+                if entry["column_of_interest"] == "":
+                    continue
+
                 if entry["column_of_interest"] not in dft.columns:
                     self.logger.info(f"Threshold column: {entry['column_of_interest']} not found in {fname}")
                     if entry["column_of_interest"] in self.cols_to_print:
@@ -112,8 +116,8 @@ class AnalyseData(Common):
                 else:
                     # TODO: check if either of rows before or after exist
                     # self.check_index(df, rowsbefore, rowsafter, self.threshold_column_of_interest, cf)
-                    self.logger.info(f"Threshold {1} crossed {dfc.shape[0]} times in file {fname} for column {entry['column_of_interest']}")
-                    self.stats += f"Threshold {1} crossed {dfc.shape[0]} times in file {fname} for column {entry['column_of_interest']}<br>"
+                    self.logger.info(f"Threshold crossed {dfc.shape[0]} times in file {fname} for expression {expr}")
+                    self.stats += f"Threshold crossed {dfc.shape[0]} times in file {fname} for expression {expr}<br>"
 
                     dfall_local = self.check_index(dfc, dft)
             return dfall_local
@@ -123,8 +127,10 @@ class AnalyseData(Common):
     def analyse_state_change(self, dfs, fname):
         dftoggle = pd.DataFrame()
         if bool(self.state_change):
+            if self.state_change_column_of_interest == "":
+                return dftoggle
             if self.state_change_column_of_interest not in dfs.columns:
-                self.logger.info(f"{self.state_change_column_of_interest} not found in {fname}")
+                self.logger.info(f"State change column: {self.state_change_column_of_interest} not found in {fname}")
                 if self.state_change_column_of_interest in self.cols_to_print:
                     self.cols_to_print.remove(self.state_change_column_of_interest)
                 return dftoggle
@@ -162,8 +168,9 @@ class AnalyseData(Common):
         dfmain_sc = pd.DataFrame()
         dfall = pd.DataFrame()
         dfall_sc = pd.DataFrame()
-        
-        for cf in cfiles:
+        pbar = tqdm(range(len(cfiles)), desc ="Progress on number of files processed", ncols=100)
+        for i in pbar:
+          for cf in cfiles:
             self.cols_to_print = list(["Local Computer Time"])
             self.logger.debug(f"columns to print {self.cols_to_print}")
 
@@ -204,7 +211,7 @@ class AnalyseData(Common):
                     dfall_sc = pd.concat([dfall_sc, dfs], axis=0).drop_duplicates()
                     self.logger.info(f"dfall_sc: memory usage: {dfall_sc.memory_usage(deep=True).sum()/1e6} MB")
             self.logger.debug(f"columns to print {self.cols_to_print}")
-                
+
 
         if dfmain.empty and dfmain_sc.empty:
             self.logger.info("No output to process")
