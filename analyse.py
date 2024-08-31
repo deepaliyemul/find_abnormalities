@@ -24,7 +24,7 @@ class AnalyseData(Common):
         self.cols_to_print = list([" "])
         self.threshold_cross = jsondata.get("threshold", None)
         self.state_change = jsondata.get("state_change", None)
-        self.extra_columns = jsondata.get("extra_columns", list())
+        self.extra_columns = set(jsondata.get("extra_columns", list()))
         self.create_detailed_csv = jsondata.get("create_detailed_csv", None)
         self.rowsbefore = jsondata.get("rows_before_abnormality", 0)
         self.rowsafter = jsondata.get("rows_after_abnormality", 0)
@@ -146,6 +146,15 @@ class AnalyseData(Common):
                 self.total_toggles += df1.shape[0] + df2.shape[0]
                 return dftoggle
 
+    def is_duplicate(self, lst):
+        checked = []
+        print(lst)
+        for item in lst:
+            if item in checked:
+                print(item)
+                return True
+            checked.append(item)
+        return False
 
     def find_abnormalities(self, cfiles, jsondata):
         
