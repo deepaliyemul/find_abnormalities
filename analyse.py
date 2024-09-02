@@ -4,6 +4,7 @@ import json
 import glob
 import shutil
 from datetime import datetime
+import time
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 import plotly.express as px
@@ -15,6 +16,7 @@ class AnalyseData(Common):
 
     
     def __init__(self, input_json, loglevel):
+        self.starttimestamp = time.time()
         Common.__init__(self)
         jsondata = self.read_inputjson(input_json)
         self.outdir, outbase = self.setup_output_directory(jsondata["output_directory"])
@@ -30,13 +32,14 @@ class AnalyseData(Common):
         self.rowsbefore = jsondata.get("rows_before_abnormality", 0)
         self.rowsafter = jsondata.get("rows_after_abnormality", 0)
         #default to skip 4 rows
-        self.skiprows = jsondata.get("header_start_row", 5) - 1 
+        self.skiprows = jsondata.get("header_start_row", 4)
         self.stats = ""
         self.total_toggles = 0
-        
+        self.threshold_column_of_interest_list = list()
+
         if self.threshold_cross:
             for entry in self.threshold_cross:
-                #self.threshold_column_of_interest_list = entry.get("column_of_interest", None)
+                self.threshold_column_of_interest_list.append(entry.get("column_of_interest", ""))
                 #self.threshold = entry.get("value", None)
                 self.operator = entry.get("operator", "=")
                  #validate operator- from
@@ -50,6 +53,11 @@ class AnalyseData(Common):
             self.state_change_value1 = self.state_change.get("value_1", None)
             self.state_change_value2 = self.state_change.get("value_2", None)
             self.logger.info(f"Finding state change for column: {self.state_change_column_of_interest}")
+
+        self.load_columns_from_csv = ([self.state_change_column_of_interest] +
+                                      list(self.extra_columns) +
+                                      self.threshold_column_of_interest_list +
+                                      ["Local Computer Time"])
 
 
     def call_analysis(self, input_json):
@@ -168,15 +176,18 @@ class AnalyseData(Common):
         dfmain_sc = pd.DataFrame()
         dfall = pd.DataFrame()
         dfall_sc = pd.DataFrame()
-        pbar = tqdm(range(len(cfiles)), desc ="Progress on number of files processed", ncols=100)
-        for i in pbar:
-          for cf in cfiles:
+        pbar = tqdm(range(len(cfiles)), desc ="\nProgress on number of files processed", ncols=100)
+        for cf in cfiles:
+            pbar.update()
             self.cols_to_print = list(["Local Computer Time"])
             self.logger.debug(f"columns to print {self.cols_to_print}")
 
             self.logger.info(f"\n----------------Analysing file {cf}--------------------- ")
             try:
-                df = pd.read_csv(cf, skiprows=self.skiprows, low_memory=False)
+                df = pd.read_csv(cf,
+                                 skiprows=self.skiprows,
+                                 usecols=lambda x: x in self.load_columns_from_csv,
+                                 low_memory=False)
                 df.insert(0, "filename", cf)
                 self.cols_to_print.append("filename")
 
@@ -185,6 +196,7 @@ class AnalyseData(Common):
                 continue
             
             if "Local Computer Time" not in df.columns:
+                self.logger.debug(df.columns)
                 self.logger.error(f"ERROR: Exiting the file because column: Local Computer Time not found columns are not found in {cf}")
                 continue
                 
@@ -241,7 +253,11 @@ class AnalyseData(Common):
             self.logger.info(f"State change Output saved to {self.outfile}_state_toggle.csv")
 
         self.logger.info(f"All results saved in directory: {self.outdir}")
-        
+        # Your code here
+        timeelapsed = time.time() - self.starttimestamp
+        hours, rem = divmod(timeelapsed, 3600)
+        minutes, seconds = divmod(rem, 60)
+        self.logger.info("Processing time: {:0>2}:{:0>2}:{:05.1f}".format(int(hours), int(minutes), seconds))
 
     def get_files(self, jsondata):
         input_csvs = jsondata.get("input_csvs", None)
